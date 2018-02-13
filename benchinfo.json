@@ -20,6 +20,7 @@
     "coroutine_ring" : 2500000,
     "euler14" : 3000000,
     "nsieve" : 8,
+    "life" : 2000,
   },
 
   "info" : {

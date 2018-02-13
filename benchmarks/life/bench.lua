@@ -9,8 +9,8 @@ ALIVE="¥"	DEAD="þ"
 ALIVE="O"	DEAD="-"
 
 function delay() -- NOTE: SYSTEM-DEPENDENT, adjust as necessary
-  for i=1,10000 do end
-  -- local i=os.clock()+1 while(os.clock()<i) do end
+  --for i=1,10000 do end
+  local i=os.clock()+0.1 while(os.clock()<i) do end
 end
 
 function ARRAY2D(w,h)
@@ -60,7 +60,9 @@ function _CELLS:draw()
     end
     out=out.."\n"
   end
-  write(out)
+  -- Make sure the string is used
+  lastscreen = out
+  --write(out)
 end
 
 -- constructor
@@ -82,7 +84,7 @@ FISH = { 0,1,1,1,1,1,0,0,0,1,0,0,0,0,1,1,0,0,1,0; w=5,h=4 }
 BUTTERFLY = { 1,0,0,0,1,0,1,1,1,0,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1; w=5,h=5 }
 
 -- the main routine
-function LIFE(w,h)
+function LIFE(w,h, n)
   -- create two arrays
   local thisgen = CELLS(w,h)
   local nextgen = CELLS(w,h)
@@ -95,17 +97,21 @@ function LIFE(w,h)
 
   -- run until break
   local gen=1
-  write("\027[2J")	-- ANSI clear screen
+  --write("\027[2J")	-- ANSI clear screen
   while 1 do
     thisgen:evolve(nextgen)
     thisgen,nextgen = nextgen,thisgen
-    write("\027[H")	-- ANSI home cursor
+   -- write("\027[H")	-- ANSI home cursor
     thisgen:draw()
-    write("Life - generation ",gen,"\n")
+   --write("Life - generation ",gen,"\n")
     gen=gen+1
-    if gen>2000 then break end
+    if gen > n then
+      break 
+    end
     --delay()		-- no delay
   end
 end
 
-LIFE(40,20)
+function run_iter(N)
+    LIFE(40,20, N)
+end
