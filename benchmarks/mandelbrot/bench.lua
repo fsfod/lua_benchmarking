@@ -1,9 +1,10 @@
-
 local write, char, unpack = io.write, string.char, unpack
-local N = tonumber(arg and arg[1]) or 100
-local M, ba, bb, buf = 2/N, 2^(N%8+1)-1, 2^(8-N%8), {}
-write("P4\n", N, " ", N, "\n")
-for y=0,N-1 do
+
+function run_iter(N)
+  local M, ba, bb, buf = 2/N, 2^(N%8+1)-1, 2^(8-N%8), {}
+  -- write("P4\n", N, " ", N, "\n")
+  local s
+  for y=0,N-1 do
   local Ci, b, p = y*M-1, 1, 0
   for x=0,N-1 do
     local Cr = x*M-1.5
@@ -19,5 +20,9 @@ for y=0,N-1 do
     if b >= 256 then p = p + 1; buf[p] = 511 - b; b = 1; end
   end
   if b ~= 1 then p = p + 1; buf[p] = (ba-b)*bb; end
-  write(char(unpack(buf, 1, p)))
+  -- write(char(unpack(buf, 1, p)))
+  -- Keep the string allocation
+  s = char(unpack(buf, 1, p))
+  end
+  return s
 end

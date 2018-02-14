@@ -21,6 +21,7 @@
     "euler14" : 3000000,
     "nsieve" : 8,
     "life" : 2000,
+    "mandelbrot" : 1200,
   },
 
   "info" : {
