@@ -486,6 +486,8 @@ Usage: simplerunner [OPTION] [<benchmark>] [<count>]
   --nogc               Run the benchmarks with the GC disabled.
   --norandomize        Don't randomize the run order of the benchmarks.
   --inprocess          Run benchmarks in the main process instead of executing them in a child process.
+  --options            Load options from a file
+  --rerun              Rerun the benchmarks from the previous execution with the same options
 ]]
     os.exit(0)
 end
@@ -511,6 +513,8 @@ function opt_map.jdump(args)
         g_opt.jdump = options
     end
 end
+function opt_map.options(args) g_opt.optionsfile = optparam(args) end
+function opt_map.rerun(args) g_opt.optionsfile = "lastrun.json" end
 
 ------------------------------------------------------------------------------
 
@@ -554,6 +558,31 @@ function runner.parse_commandline(args)
         end
     end
 
+    if g_opt.optionsfile then
+        local success, options = loadjson(g_opt.optionsfile)
+        if not success then
+            print("Error "..options)
+            os.exit(1)
+        end
+
+        local file_benchmarks, file_excludes = options.benchmarks, options.excludes
+        options.benchmarks = nil
+        options.excludes = nil
+
+        -- If the optional file doesn't specify a list of benchmarks allow the command line options set them
+        if #file_benchmarks > 0 then
+            g_opt.benchmarks = file_benchmarks
+        end
+
+        if #file_excludes > 0 then
+            g_opt.excludes = file_excludes
+        end
+
+        -- Merge options from the file with command line. Conflicting command line options will get overwritten for simplicity.
+        for k, v in pairs(options) do
+            g_opt[k] = v
+        end
+    end
     g_opt.count = g_opt.count or 30
 
     local benchmarks
@@ -642,5 +671,9 @@ else
         benchmarks = benchlist
     end
     benchmarks = runner.filter_benchmarks(benchmarks)
+    -- Only save the benchmarks we're going to run in the last run options file.
+    options.benchmarks = benchmarks
+    writefile("lastrun.json", json.encode(options))
+
     runner.run_benchmark_list(benchmarks, options.count, options)
 end
