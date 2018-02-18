@@ -351,7 +351,13 @@ function runner.run_benchmark_list(benchmarks, count, options)
                 jitstats.print()
             end
         else
-           runner.runbench_outprocess(name, count, scaling, options)
+           stats = runner.runbench_outprocess(name, count, scaling, options)
+        end
+
+        print("  " .. runner.fmtstats(stats))
+        
+        if options.outputfile then
+            results[name] = stats
         end
 
         if options.inprocess then
@@ -363,16 +369,26 @@ function runner.run_benchmark_list(benchmarks, count, options)
             package.cpath = package_cpath
         end
     end
+
+    if options.outputfile then
+        local data = {
+            options = options,
+            benchmarks = results,
+            scaling = scaling,
+        }
+        writefile(options.outputfile, json.encode(data))
+    end
 end
 
 function runner.runbench_outprocess(name, count, scaling, options)
     local lc = require("luachild")
     local read, write = lc.pipe()
+    local resultsfile = "temp_result.json"
 
     local p = lc.spawn{
         command = arg[-1],
         args = {
-            arg[0], "--childprocess", name, count, scaling, unpack(arg, 1) 
+            arg[0], "--childprocess", name, count, scaling, resultsfile, unpack(arg, 1) 
         },
     }
  
@@ -380,19 +396,32 @@ function runner.runbench_outprocess(name, count, scaling, options)
     if cmdret ~= 0 then
         error("Out of process benchmark execution failed status = "..cmdret)
     end
+
+    local success, text = readfile(resultsfile)
+    if not success then
+        error("Failed to read benchmark result: "..text)
+    end
+
+    return json.decode(text)
 end
 
-function runner.subprocess_run(benchmark, count, scaling, parent_options)
+function runner.subprocess_run(benchmark, count, scaling, resultsfile, parent_options)
     scaling = tonumber(scaling)
     count = tonumber(count)
     subprocess = true
     runner.processoptions(parent_options)
 
     local times, jstats = runner.runbench(benchmark, count, scaling)
-    local stats = runner.calculate_stats(times)
-    print("  " .. runner.fmtstats(stats))
-    if jitstats then
-        jitstats.print()
+    local stats = runner.calculate_stats(times)   
+    stats.times = times
+    stats.jitstats = jstats
+
+    local data = json.encode(stats)
+    local success, msg = writefile(resultsfile, data)
+
+    if not success then
+      print("Failed to save results", msg)
+      os.exit(1)
     end
 
     os.exit(0)
@@ -465,7 +494,7 @@ end
 local opt_alias = {
     h = "help", ["?"] = "help",
     b = "bench", c = "count", s = "scaling",
-    e = "exclude",
+    e = "exclude", o = "outputfile",
 }
 
 -- Print help text.
@@ -479,6 +508,7 @@ Usage: simplerunner [OPTION] [<benchmark>] [<count>]
   -c, --count num       Number of times to run the benchmarks.
   -s, --scaling num     Number of interations to run the benchmarks.
   -e, --exclude name    Exclude a benchmark from being run.
+  -o, --outputfile path Saves results in json to file spcifed.
 
   --jitstats           Collect and print jit statisitcs from running the benchmarks.
   --jdump options      Run LuaJIT's jit.dump module with the specifed options.
@@ -515,6 +545,7 @@ function opt_map.jdump(args)
 end
 function opt_map.options(args) g_opt.optionsfile = optparam(args) end
 function opt_map.rerun(args) g_opt.optionsfile = "lastrun.json" end
+function opt_map.outputfile(args) g_opt.outputfile = optparam(args) end
 
 ------------------------------------------------------------------------------
 
@@ -660,9 +691,9 @@ end
 runner.init()
 
 if arg[1] == "--childprocess" then
-    local benchmark, count, scaling = unpack(arg, 2)
-    local _, options = runner.parse_commandline({unpack(arg, 5)})
-    runner.subprocess_run(benchmark, count, scaling, options)
+    local benchmark, count, scaling, results_path = unpack(arg, 2)
+    local _, options = runner.parse_commandline({unpack(arg, 6)})
+    runner.subprocess_run(benchmark, count, scaling, results_path, options)
 else
     local benchmarks, options = runner.parse_commandline(arg)
     runner.processoptions(options)
