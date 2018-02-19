@@ -609,9 +609,11 @@ function runner.parse_commandline(args)
             g_opt.excludes = file_excludes
         end
 
-        -- Merge options from the file with command line. Conflicting command line options will get overwritten for simplicity.
+        -- Merge values from the option file with command line options. Command line options will overridden.
         for k, v in pairs(options) do
-            g_opt[k] = v
+            if not g_opt[k] then
+                g_opt[k] = v
+            end
         end
     end
     g_opt.count = g_opt.count or 30
